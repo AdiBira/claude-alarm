@@ -66,7 +66,16 @@ process.on('SIGINT', () => {
 
 const waitArg = process.argv[2];
 const parsedWait = waitArg !== undefined ? parseFloat(waitArg) : NaN;
-const waitMinutes = isTestMode ? 0 : !isNaN(parsedWait) && parsedWait >= 0 ? parsedWait : config.defaultWaitMinutes;
+
+let waitMinutes;
+if (isTestMode) {
+  waitMinutes = 0;
+} else if (!isNaN(parsedWait) && parsedWait >= 0) {
+  waitMinutes = parsedWait;
+} else {
+  waitMinutes = config.defaultWaitMinutes;
+}
+
 const waitMs = Math.round(waitMinutes * 60 * 1000);
 
 // ── Schedule alarm ───────────────────────────────────────────────────
@@ -105,11 +114,6 @@ if (isTestMode) {
 
 function playAlertSounds() {
   const platform = os.platform();
-
-  // Terminal bell (universal fallback)
-  try {
-    process.stdout.write('\x07');
-  } catch {}
 
   if (platform === 'darwin') {
     macOSSounds();
@@ -168,6 +172,7 @@ function macOSDialog() {
         config.displayMessage +
         '" with title "Claude Credits Renewed" buttons {"Let\'s go!"} default button "Let\'s go!" with icon note',
     ]);
+    proc.on('error', () => {});
     return proc;
   } catch {}
   return null;
@@ -204,37 +209,39 @@ function linuxSounds() {
 
 function linuxDialog() {
   // Try zenity first, fall back to kdialog
-  try {
-    const proc = spawnChild('zenity', [
-      '--info',
-      '--title=Claude Credits Renewed',
-      '--text=' + config.displayMessage,
-      '--ok-label=Let\'s go!',
-    ]);
-    return proc;
-  } catch {}
+  const cmds = [
+    { cmd: 'zenity', args: ['--info', '--title=Claude Credits Renewed', '--text=' + config.displayMessage, '--ok-label=Let\'s go!'] },
+    { cmd: 'kdialog', args: ['--msgbox', config.displayMessage, '--title', 'Claude Credits Renewed'] },
+  ];
 
-  try {
-    const proc = spawnChild('kdialog', [
-      '--msgbox',
-      config.displayMessage,
-      '--title',
-      'Claude Credits Renewed',
-    ]);
-    return proc;
-  } catch {}
+  for (const { cmd, args } of cmds) {
+    try {
+      execFileSync('which', [cmd], { stdio: 'pipe' });
+      const proc = spawnChild(cmd, args);
+      proc.on('error', () => {}); // Suppress spawn errors
+      return proc;
+    } catch {
+      continue;
+    }
+  }
 
   return null;
 }
 
 // ── Windows ──────────────────────────────────────────────────────────
 
+function sanitizeForPS(str) {
+  // Remove characters that could break out of PowerShell single-quoted strings
+  return String(str).replace(/'/g, "''").replace(/[`$]/g, '');
+}
+
 function windowsSounds() {
+  const msg = sanitizeForPS(config.spokenMessage);
   const psScript = `
     Add-Type -AssemblyName System.Speech
     $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
     $synth.Rate = 0
-    $synth.Speak('${config.spokenMessage.replace(/'/g, "''")}')
+    $synth.Speak('${msg}')
   `.trim();
 
   try {
@@ -243,13 +250,15 @@ function windowsSounds() {
 }
 
 function windowsDialog() {
+  const msg = sanitizeForPS(config.displayMessage);
   const psScript = `
     Add-Type -AssemblyName PresentationFramework
-    [System.Windows.MessageBox]::Show('${config.displayMessage.replace(/'/g, "''")}', 'Claude Credits Renewed', 'OK', 'Information')
+    [System.Windows.MessageBox]::Show('${msg}', 'Claude Credits Renewed', 'OK', 'Information')
   `.trim();
 
   try {
     const proc = spawnChild('powershell', ['-NoProfile', '-Command', psScript]);
+    proc.on('error', () => {});
     return proc;
   } catch {}
   return null;

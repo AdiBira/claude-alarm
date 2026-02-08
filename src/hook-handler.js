@@ -77,8 +77,7 @@ function handleHook(data) {
 
   const isRateLimit = rateLimitPatterns.some((p) => p.test(fullText));
   if (!isRateLimit) {
-    process.exit(0);
-    return;
+    return process.exit(0);
   }
 
   // Don't spawn a second alarm if one is already running
@@ -86,8 +85,7 @@ function handleHook(data) {
     try {
       const pid = parseInt(fs.readFileSync(PID_FILE, 'utf8').trim());
       process.kill(pid, 0); // Throws if process doesn't exist
-      process.exit(0);
-      return;
+      return process.exit(0);
     } catch {
       // Stale PID file, remove and continue
       try {

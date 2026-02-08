@@ -27,9 +27,8 @@ function setup() {
   fs.mkdirSync(CONFIG_DIR, { recursive: true });
 
   // Copy standalone scripts to ~/.claude-alarm/
-  const srcDir = path.join(__dirname);
-  fs.copyFileSync(path.join(srcDir, 'hook-handler.js'), path.join(CONFIG_DIR, 'hook-handler.js'));
-  fs.copyFileSync(path.join(srcDir, 'alarm-daemon.js'), path.join(CONFIG_DIR, 'alarm-daemon.js'));
+  fs.copyFileSync(path.join(__dirname, 'hook-handler.js'), path.join(CONFIG_DIR, 'hook-handler.js'));
+  fs.copyFileSync(path.join(__dirname, 'alarm-daemon.js'), path.join(CONFIG_DIR, 'alarm-daemon.js'));
 
   // Write config
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
@@ -75,7 +74,7 @@ function uninstall() {
 function manualStart(timeArg) {
   if (!timeArg) {
     console.log('\n  Usage: claude-alarm start <time>');
-    console.log('  Examples: "4h", "30m", "240" (minutes)\n');
+    console.log('  Examples: "4h", "30m", "90s", "240" (minutes)\n');
     process.exit(1);
   }
 
@@ -323,10 +322,13 @@ function parseTime(str) {
 function formatDuration(minutes) {
   if (minutes >= 60) {
     const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
+    const m = Math.round(minutes % 60);
     return m > 0 ? `${h}h ${m}m` : `${h}h`;
   }
-  return `${minutes}m`;
+  if (minutes < 1) {
+    return `${Math.round(minutes * 60)}s`;
+  }
+  return `${Math.round(minutes)}m`;
 }
 
 module.exports = { setup, uninstall, manualStart, stop, status, test };
