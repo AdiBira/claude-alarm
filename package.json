@@ -1,0 +1,30 @@
+{
+  "name": "claude-alarm",
+  "version": "1.0.0",
+  "description": "Automatic alarm when your Claude Pro credits renew. Never miss a coding window again.",
+  "bin": {
+    "claude-alarm": "bin/claude-alarm.js"
+  },
+  "files": [
+    "bin/",
+    "src/"
+  ],
+  "keywords": [
+    "claude",
+    "alarm",
+    "credits",
+    "rate-limit",
+    "claude-code",
+    "claude-pro",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  }
+}
