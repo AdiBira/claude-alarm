@@ -1,8 +1,10 @@
 # claude-alarm
 
-Never miss your Claude Pro credit renewal. Get an automatic voice alert the moment your rate limit resets.
+Never miss your Claude credit renewal. Get an automatic voice alert the moment your rate limit resets.
 
-When you hit the Claude Pro rate limit, `claude-alarm` detects it automatically through Claude Code hooks, starts a countdown, and speaks **"Time to build. Claude credits are back!"** when your credits renew -- with a desktop notification, a gentle chime, and a dismiss dialog.
+Works with all Claude subscriptions -- **Pro, Max, and any plan with rate limits**.
+
+When you hit a Claude rate limit, `claude-alarm` detects it automatically through Claude Code hooks, starts a countdown, and speaks **"Time to build. Claude credits are back!"** when your credits renew -- with a desktop notification, a gentle chime, and a dismiss dialog.
 
 ![Claude Credits Renewed popup](assets/popup.png)
 
@@ -71,6 +73,8 @@ After setup, edit `~/.claude-alarm/config.json` to customize:
 - **voice**: macOS voice name, or `espeak`/`spd-say` on Linux
 - **rate**: Speech rate (words per minute)
 - **defaultWaitMinutes**: Fallback countdown if reset time can't be detected (default: 4 hours)
+
+> Works with Claude Pro, Claude Max, and any subscription tier that has rate limits. The detection is keyword-based and tier-agnostic.
 
 ## How detection works
 

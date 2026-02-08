@@ -144,7 +144,7 @@ function macOSSounds() {
       '-e',
       'display notification "' +
         config.displayMessage +
-        '" with title "Claude Credits Renewed" subtitle "Your Pro limit has reset" sound name "Glass"',
+        '" with title "Claude Credits Renewed" subtitle "Your rate limit has reset" sound name "Glass"',
     ]);
   } catch {}
 

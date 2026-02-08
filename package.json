@@ -1,7 +1,7 @@
 {
   "name": "claude-alarm",
   "version": "1.0.0",
-  "description": "Automatic alarm when your Claude Pro credits renew. Never miss a coding window again.",
+  "description": "Automatic alarm when your Claude credits renew. Works with Pro, Max, and any rate-limited plan. Never miss a coding window again.",
   "bin": {
     "claude-alarm": "bin/claude-alarm.js"
   },
@@ -16,6 +16,7 @@
     "rate-limit",
     "claude-code",
     "claude-pro",
+    "claude-max",
     "cli"
   ],
   "author": "",
