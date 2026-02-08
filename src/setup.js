@@ -313,6 +313,8 @@ function parseTime(str) {
   if (hourMatch) return Math.ceil(parseFloat(hourMatch[1]) * 60);
   const minMatch = str.match(/^(\d+)m$/);
   if (minMatch) return parseInt(minMatch[1]);
+  const secMatch = str.match(/^(\d+)s$/);
+  if (secMatch) return parseFloat(secMatch[1]) / 60;
   const numMatch = str.match(/^(\d+)$/);
   if (numMatch) return parseInt(numMatch[1]);
   return 0;

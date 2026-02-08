@@ -4,14 +4,15 @@
 //
 // Background alarm daemon. Spawned by hook-handler.js or manual `claude-alarm start`.
 // Sleeps until the target time, then fires a positive desktop notification + voice alert.
-// Repeats once after 1 minute if not dismissed. Auto-exits after that.
+// Shows a persistent dialog with a dismiss button. If dismissed, the second repeat is cancelled.
+// If not dismissed, repeats once after 1 minute, then auto-exits.
 //
 // Usage:
 //   node alarm-daemon.js <minutes>     Background mode: wait <minutes>, then alarm
 //   node alarm-daemon.js --now         Test mode: fire once immediately, then exit
 //
 
-const { execFileSync } = require('child_process');
+const { execFileSync, spawn: spawnChild } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -64,33 +65,45 @@ process.on('SIGINT', () => {
 // ── Parse wait time ──────────────────────────────────────────────────
 
 const waitArg = process.argv[2];
-const waitMinutes =
-  isTestMode ? 0 : waitArg !== undefined ? parseInt(waitArg) || config.defaultWaitMinutes : config.defaultWaitMinutes;
-const waitMs = waitMinutes * 60 * 1000;
+const parsedWait = waitArg !== undefined ? parseFloat(waitArg) : NaN;
+const waitMinutes = isTestMode ? 0 : !isNaN(parsedWait) && parsedWait >= 0 ? parsedWait : config.defaultWaitMinutes;
+const waitMs = Math.round(waitMinutes * 60 * 1000);
 
 // ── Schedule alarm ───────────────────────────────────────────────────
 
 if (isTestMode) {
-  fireAlarm();
+  playAlertSounds();
   process.exit(0);
 } else {
   setTimeout(() => {
-    fireAlarm();
+    playAlertSounds();
 
-    // Second alarm after 1 minute if not dismissed
+    // Show persistent dismiss dialog (non-blocking spawn)
+    // When user clicks the button, the dialog process exits and we clean up
+    const dialogProc = showDismissDialog();
+
+    if (dialogProc) {
+      dialogProc.on('close', () => {
+        // User clicked "Let's go!" -- dismiss alarm, cancel second repeat
+        cleanup();
+        process.exit(0);
+      });
+    }
+
+    // Second alarm after 1 minute if not dismissed (PID file still exists)
     setTimeout(() => {
       if (fs.existsSync(PID_FILE)) {
-        fireAlarm();
+        playAlertSounds();
       }
-      // Done. Auto-exit.
-      setTimeout(() => process.exit(0), 3000);
+      // Auto-exit after second alarm regardless
+      setTimeout(() => process.exit(0), 5000);
     }, 60 * 1000);
   }, waitMs);
 }
 
-// ── Alarm ────────────────────────────────────────────────────────────
+// ── Alert sounds (notification + chime + voice) ──────────────────────
 
-function fireAlarm() {
+function playAlertSounds() {
   const platform = os.platform();
 
   // Terminal bell (universal fallback)
@@ -99,17 +112,32 @@ function fireAlarm() {
   } catch {}
 
   if (platform === 'darwin') {
-    macOSAlarm();
+    macOSSounds();
   } else if (platform === 'linux') {
-    linuxAlarm();
+    linuxSounds();
   } else if (platform === 'win32') {
-    windowsAlarm();
+    windowsSounds();
   }
+}
+
+// ── Dismiss dialog (persistent, stays on screen until clicked) ───────
+
+function showDismissDialog() {
+  const platform = os.platform();
+
+  if (platform === 'darwin') {
+    return macOSDialog();
+  } else if (platform === 'linux') {
+    return linuxDialog();
+  } else if (platform === 'win32') {
+    return windowsDialog();
+  }
+  return null;
 }
 
 // ── macOS ────────────────────────────────────────────────────────────
 
-function macOSAlarm() {
+function macOSSounds() {
   // Desktop notification with chime
   try {
     execFileSync('osascript', [
@@ -131,9 +159,23 @@ function macOSAlarm() {
   } catch {}
 }
 
+function macOSDialog() {
+  // Persistent dialog with "Let's go!" button -- stays on screen until clicked
+  try {
+    const proc = spawnChild('osascript', [
+      '-e',
+      'display dialog "' +
+        config.displayMessage +
+        '" with title "Claude Credits Renewed" buttons {"Let\'s go!"} default button "Let\'s go!" with icon note',
+    ]);
+    return proc;
+  } catch {}
+  return null;
+}
+
 // ── Linux ────────────────────────────────────────────────────────────
 
-function linuxAlarm() {
+function linuxSounds() {
   // Desktop notification
   try {
     execFileSync('notify-send', ['-u', 'normal', 'Claude Credits Renewed', config.displayMessage]);
@@ -160,19 +202,55 @@ function linuxAlarm() {
   }
 }
 
+function linuxDialog() {
+  // Try zenity first, fall back to kdialog
+  try {
+    const proc = spawnChild('zenity', [
+      '--info',
+      '--title=Claude Credits Renewed',
+      '--text=' + config.displayMessage,
+      '--ok-label=Let\'s go!',
+    ]);
+    return proc;
+  } catch {}
+
+  try {
+    const proc = spawnChild('kdialog', [
+      '--msgbox',
+      config.displayMessage,
+      '--title',
+      'Claude Credits Renewed',
+    ]);
+    return proc;
+  } catch {}
+
+  return null;
+}
+
 // ── Windows ──────────────────────────────────────────────────────────
 
-function windowsAlarm() {
+function windowsSounds() {
   const psScript = `
     Add-Type -AssemblyName System.Speech
-    Add-Type -AssemblyName PresentationFramework
     $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
     $synth.Rate = 0
     $synth.Speak('${config.spokenMessage.replace(/'/g, "''")}')
-    [System.Windows.MessageBox]::Show('${config.displayMessage.replace(/'/g, "''")}', 'Claude Credits Renewed', 'OK', 'Information')
   `.trim();
 
   try {
     execFileSync('powershell', ['-NoProfile', '-Command', psScript]);
   } catch {}
+}
+
+function windowsDialog() {
+  const psScript = `
+    Add-Type -AssemblyName PresentationFramework
+    [System.Windows.MessageBox]::Show('${config.displayMessage.replace(/'/g, "''")}', 'Claude Credits Renewed', 'OK', 'Information')
+  `.trim();
+
+  try {
+    const proc = spawnChild('powershell', ['-NoProfile', '-Command', psScript]);
+    return proc;
+  } catch {}
+  return null;
 }
