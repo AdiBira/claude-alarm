@@ -127,6 +127,10 @@ function extractResetTime(text) {
   match = text.match(/in\s+(\d+)\s*minutes?/i);
   if (match) return parseInt(match[1]);
 
+  // "in X seconds"
+  match = text.match(/in\s+(\d+)\s*seconds?/i);
+  if (match) return Math.max(0.5, parseFloat(match[1]) / 60);
+
   // "retry-after: X" (seconds)
   match = text.match(/retry.?after[\s:]+(\d+)/i);
   if (match) return Math.max(1, Math.ceil(parseInt(match[1]) / 60));
