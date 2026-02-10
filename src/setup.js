@@ -30,7 +30,13 @@ function setup() {
   fs.copyFileSync(path.join(__dirname, 'hook-handler.js'), path.join(CONFIG_DIR, 'hook-handler.js'));
   fs.copyFileSync(path.join(__dirname, 'alarm-daemon.js'), path.join(CONFIG_DIR, 'alarm-daemon.js'));
 
-  // Write config
+  // Merge with existing config (preserve user customizations on re-run)
+  if (fs.existsSync(CONFIG_FILE)) {
+    try {
+      const existing = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+      Object.assign(config, existing);
+    } catch {}
+  }
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
   console.log('');
 
@@ -200,7 +206,16 @@ function installHooks() {
     ],
   };
 
-  const hookEvents = ['Notification', 'Stop', 'PostToolUseFailure'];
+  const hookEvents = ['Notification', 'PostToolUseFailure'];
+
+  // Clean up stale Stop hook from older versions
+  if (settings.hooks.Stop) {
+    settings.hooks.Stop = settings.hooks.Stop.filter(
+      (h) => !(h.hooks && h.hooks.some((hh) => hh.command && hh.command.includes('claude-alarm')))
+    );
+    if (settings.hooks.Stop.length === 0) delete settings.hooks.Stop;
+    console.log('  - Removed stale Stop hook');
+  }
 
   for (const event of hookEvents) {
     if (!settings.hooks[event]) settings.hooks[event] = [];
@@ -229,7 +244,7 @@ function removeHooks() {
     const settings = JSON.parse(fs.readFileSync(CLAUDE_SETTINGS, 'utf8'));
     if (!settings.hooks) return;
 
-    const hookEvents = ['Notification', 'Stop', 'PostToolUseFailure'];
+    const hookEvents = ['Notification', 'PostToolUseFailure', 'Stop'];
 
     for (const event of hookEvents) {
       if (!settings.hooks[event]) continue;

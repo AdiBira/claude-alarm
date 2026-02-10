@@ -2,7 +2,7 @@
 'use strict';
 
 //
-// This script is called by Claude Code hooks (Notification, Stop, PostToolUseFailure).
+// This script is called by Claude Code hooks (Notification, PostToolUseFailure).
 // It reads JSON from stdin, checks for rate limit indicators, and spawns the alarm daemon.
 // It lives at ~/.claude-alarm/hook-handler.js after setup.
 //
@@ -32,51 +32,12 @@ process.stdin.on('end', () => {
 });
 
 function handleHook(data) {
-  // Collect all text fields to scan for rate limit indicators
-  const texts = [
-    data.message,
-    data.title,
-    data.error,
-    typeof data.tool_response === 'string'
-      ? data.tool_response
-      : JSON.stringify(data.tool_response || ''),
-  ].filter(Boolean);
+  // Only check fields that come directly from Claude Code -- never conversation content
+  // Notification hook provides: message, title
+  // PostToolUseFailure hook provides: error
+  const searchText = [data.message, data.title, data.error].filter(Boolean).join(' ');
 
-  // For Stop hook: read last few lines of transcript for rate limit errors
-  if (data.transcript_path) {
-    try {
-      if (fs.existsSync(data.transcript_path)) {
-        const content = fs.readFileSync(data.transcript_path, 'utf8');
-        const lines = content.trim().split('\n');
-        // Only check last 10 lines to keep it fast
-        const tail = lines.slice(-10).join(' ');
-        texts.push(tail);
-      }
-    } catch {
-      // Can't read transcript, that's OK
-    }
-  }
-
-  const fullText = texts.join(' ');
-
-  // Check for rate limit patterns
-  const rateLimitPatterns = [
-    /rate.?limit/i,
-    /usage.?limit/i,
-    /limit.?reached/i,
-    /limit.?exceeded/i,
-    /too.?many.?requests/i,
-    /\b429\b/,
-    /try.?again.?in/i,
-    /cooldown.?period/i,
-    /quota.?exceeded/i,
-    /token.?limit.?reached/i,
-    /capacity.?limit/i,
-    /over.?capacity/i,
-  ];
-
-  const isRateLimit = rateLimitPatterns.some((p) => p.test(fullText));
-  if (!isRateLimit) {
+  if (!matchesRateLimit(searchText)) {
     return process.exit(0);
   }
 
@@ -95,7 +56,7 @@ function handleHook(data) {
   }
 
   // Extract how long to wait (in minutes)
-  const resetMinutes = extractResetTime(fullText);
+  const resetMinutes = extractResetTime(searchText);
 
   // Fall back to config default
   let defaultWait = 240;
@@ -114,6 +75,26 @@ function handleHook(data) {
   daemon.unref();
 
   process.exit(0);
+}
+
+function matchesRateLimit(text) {
+  if (!text) return false;
+
+  const rateLimitPatterns = [
+    /rate.?limit/i,
+    /usage.?limit/i,
+    /limit.?reached/i,
+    /limit.?exceeded/i,
+    /too.?many.?requests/i,
+    /\b429\b/,
+    /cooldown.?period/i,
+    /quota.?exceeded/i,
+    /token.?limit.?reached/i,
+    /capacity.?limit/i,
+    /over.?capacity/i,
+  ];
+
+  return rateLimitPatterns.some((p) => p.test(text));
 }
 
 function extractResetTime(text) {

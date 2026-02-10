@@ -84,7 +84,15 @@ if (isTestMode) {
   playAlertSounds();
   process.exit(0);
 } else {
-  setTimeout(() => {
+  const targetTime = Date.now() + waitMs;
+  let alarmFired = false;
+
+  function fireAlarm() {
+    if (alarmFired) return;
+    alarmFired = true;
+    clearInterval(checker);
+    clearTimeout(directTimeout);
+
     playAlertSounds();
 
     // Show persistent dismiss dialog (non-blocking spawn)
@@ -107,7 +115,16 @@ if (isTestMode) {
       // Auto-exit after second alarm regardless
       setTimeout(() => process.exit(0), 5000);
     }, 60 * 1000);
-  }, waitMs);
+  }
+
+  // Check every 30 seconds if it's time to fire.
+  // Survives computer sleep -- setTimeout drifts, but Date.now() stays accurate.
+  const checker = setInterval(() => {
+    if (Date.now() >= targetTime) fireAlarm();
+  }, 30 * 1000);
+
+  // Direct timeout as a fast-path for when the computer doesn't sleep
+  const directTimeout = setTimeout(() => fireAlarm(), waitMs);
 }
 
 // ── Alert sounds (notification + chime + voice) ──────────────────────

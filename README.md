@@ -78,13 +78,12 @@ After setup, edit `~/.claude-alarm/config.json` to customize:
 
 ## How detection works
 
-Claude Code has a hooks system that runs shell commands on events. `claude-alarm` installs hooks on three events:
+Claude Code has a hooks system that runs shell commands on events. `claude-alarm` installs hooks on two events:
 
-- **Notification** -- scans notification messages for rate limit keywords
-- **Stop** -- reads the session transcript when Claude stops responding
-- **PostToolUseFailure** -- catches API 429 errors
+- **Notification** -- scans system notification messages for rate limit keywords
+- **PostToolUseFailure** -- catches API 429 / rate limit errors
 
-When any hook detects a rate limit, it extracts the reset time (or defaults to 4 hours) and spawns a background alarm process that survives terminal close.
+Both hooks receive structured data directly from Claude Code (not conversation content), so there are no false positives from talking about rate limits in chat. When either hook detects a rate limit, it extracts the reset time (or defaults to 4 hours) and spawns a background alarm process that survives terminal close.
 
 ## Uninstall
 
