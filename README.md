@@ -85,6 +85,21 @@ Claude Code has a hooks system that runs shell commands on events. `claude-alarm
 
 Both hooks receive structured data directly from Claude Code (not conversation content), so there are no false positives from talking about rate limits in chat. When either hook detects a rate limit, it extracts the reset time (or defaults to 4 hours) and spawns a background alarm process that survives terminal close.
 
+## ntfy integration (optional)
+
+Send a push notification via [ntfy](https://ntfy.sh) when credits renew. Useful for getting alerts on your phone or other devices.
+
+Set these environment variables before running Claude Code:
+
+```bash
+export NTFY_TOPIC="my-claude-alarm"           # required to enable ntfy
+export NTFY_URL="https://ntfy.sh"             # optional, defaults to https://ntfy.sh
+export NTFY_PRIORITY="high"                   # optional
+export NTFY_TAGS="rocket"                     # optional
+```
+
+Then subscribe to your topic in the ntfy app or web UI. When credits renew, you'll receive a push notification in addition to the local alerts.
+
 ## Uninstall
 
 ```bash

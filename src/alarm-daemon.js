@@ -16,6 +16,8 @@ const { execFileSync, spawn: spawnChild } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const https = require('https');
+const http = require('http');
 
 const CONFIG_DIR = path.join(os.homedir(), '.claude-alarm');
 const PID_FILE = path.join(CONFIG_DIR, 'alarm.pid');
@@ -139,6 +141,8 @@ function playAlertSounds() {
   } else if (platform === 'win32') {
     windowsSounds();
   }
+
+  sendNtfy();
 }
 
 // ── Dismiss dialog (persistent, stays on screen until clicked) ───────
@@ -279,4 +283,23 @@ function windowsDialog() {
     return proc;
   } catch {}
   return null;
+}
+
+// ── ntfy (optional push notification) ───────────────────────────────
+
+function sendNtfy() {
+  const topic = process.env.NTFY_TOPIC;
+  if (!topic) return;
+
+  const baseUrl = (process.env.NTFY_URL || 'https://ntfy.sh').replace(/\/+$/, '');
+  const url = new URL(`${baseUrl}/${topic}`);
+  const transport = url.protocol === 'https:' ? https : http;
+
+  const headers = { 'Title': 'Claude Credits Renewed' };
+  if (process.env.NTFY_PRIORITY) headers['Priority'] = process.env.NTFY_PRIORITY;
+  if (process.env.NTFY_TAGS) headers['Tags'] = process.env.NTFY_TAGS;
+
+  const req = transport.request(url, { method: 'POST', headers }, () => {});
+  req.on('error', () => {});
+  req.end('Claude credits renewed. Time to build.');
 }
