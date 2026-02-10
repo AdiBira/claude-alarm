@@ -74,14 +74,14 @@ After setup, edit `~/.claude-alarm/config.json` to customize:
 - **rate**: Speech rate (words per minute)
 - **defaultWaitMinutes**: Fallback countdown if reset time can't be detected (default: 4 hours)
 
-> Works with Claude Pro, Claude Max, and any subscription tier that has rate limits. The detection is keyword-based and tier-agnostic.
+> Works with Claude Pro, Claude Max, and any subscription tier that has rate limits. Detection is hook-based and tier-agnostic.
 
 ## How detection works
 
 Claude Code has a hooks system that runs shell commands on events. `claude-alarm` installs hooks on two events:
 
-- **Notification** -- scans system notification messages for rate limit keywords
-- **PostToolUseFailure** -- catches API 429 / rate limit errors
+- **Notification** -- triggered when Claude Code emits a system notification about rate limits
+- **PostToolUseFailure** -- triggered when a tool call fails with a rate limit error (e.g. HTTP 429)
 
 Both hooks receive structured data directly from Claude Code (not conversation content), so there are no false positives from talking about rate limits in chat. When either hook detects a rate limit, it extracts the reset time (or defaults to 4 hours) and spawns a background alarm process that survives terminal close.
 
