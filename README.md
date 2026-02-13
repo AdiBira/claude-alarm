@@ -1,3 +1,11 @@
+# ⚠️ Deprecated
+
+This project is obsolete. Claude now shows reset time natively, so this tool is no longer needed.
+
+This repository is archived.
+
+
+
 # claude-alarm
 
 Never miss your Claude credit renewal. Get an automatic voice alert the moment your rate limit resets.
